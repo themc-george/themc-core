@@ -15,7 +15,7 @@ this plugin customizable is, initially, a low priority.
 
 ## Description
 
-A WordPress plugin to provide the theme-independent core code needed to operate TheMC.Network.
+A WordPress plugin to provide the theme-independent core code needed to operate [TheMC.Network](https://themc.network/).
 
 TheMC.Network is a combination multisite config, with a small number of "core" sites plus member sites,
 plus some independent sites which might or might not share the multisite users and usermeta tables.
