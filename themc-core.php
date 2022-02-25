@@ -15,7 +15,7 @@
  * Plugin Name:       TheMC Core
  * Plugin URI:        https://themc.network/about/website-info/plugins/
  * Description:       Core code needed to operate themc.network
- * Version:           0.0.1
+ * Version:           0.0.2
  * Author:            LinuxArchitect
  * Requires at least: 5.9.0
  * Requires PHP:      8.0.0
