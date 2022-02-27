@@ -87,57 +87,101 @@ class Themc_Core_Public {
 
 	}
 
-	/**
-	 * Example of Shortcode processing function.
-	 *
-	 * Shortcode can take attributes like [themc-core-shortcode attribute='123']
-	 * Shortcodes can be enclosing content [themc-core-shortcode attribute='123']custom content[/themc-core-shortcode].
-	 *
-	 * @see https://developer.wordpress.org/plugins/shortcodes/enclosing-shortcodes/
-	 *
-	 * @since    0.0.1
-	 * @param    array  $atts    ShortCode Attributes.
-	 * @param    mixed  $content ShortCode enclosed content.
-	 * @param    string $tag    The Shortcode tag.
-	 */
-	public function themc_core_shortcode_func( $atts, $content = null, $tag ) {
+    // fires when member_registration form is completed...
+    function themc_core_wpf_member_registration( $fields, $entry, $form_data, $entry_id ) {
 
-		/**
-		 * Combine user attributes with known attributes.
-		 *
-		 * @see https://developer.wordpress.org/reference/functions/shortcode_atts/
-		 *
-		 * Pass third paramter $shortcode to enable ShortCode Attribute Filtering.
-		 * @see https://developer.wordpress.org/reference/hooks/shortcode_atts_shortcode/
-		 */
-		$atts = shortcode_atts(
-			array(
-				'attribute' => 123,
-			),
-			$atts,
-			$this->plugin_prefix . 'shortcode'
-		);
+        error_log( __FUNCTION__ . ' hook called' );
 
-		/**
-		 * Build our ShortCode output.
-		 * Remember to sanitize all user input.
-		 * In this case, we expect a integer value to be passed to the ShortCode attribute.
-		 *
-		 * @see https://developer.wordpress.org/themes/theme-security/data-sanitization-escaping/
-		 */
-		$out = intval( $atts['attribute'] );
+    }
 
-		/**
-		 * If the shortcode is enclosing, we may want to do something with $content
-		 */
-		if ( ! is_null( $content ) && ! empty( $content ) ) {
-			$out = do_shortcode( $content );// We can parse shortcodes inside $content.
-			$out = intval( $atts['attribute'] ) . ' ' . sanitize_text_field( $out );// Remember to sanitize your user input.
-		}
 
-		// ShortCodes are filters and should always return, never echo.
-		return $out;
+    function themc_core_wpf_member_activation( $user_id ) {
 
-	}
+        error_log( __FUNCTION__ . ' hook called, user_id: ' . $user_id );
+
+        //
+        // get list of sites to activate user
+        //
+        $args = [ 'limit' => -1 ];
+        $core_sites = pods( 'core_site', $args );
+        error_log( __FUNCTION__ . ": total: " . $core_sites->total() );
+
+        //
+        // loop over all sites found
+        //
+        if ( 0 < $core_sites->total() ) {
+            while ( $core_sites->fetch() ) {
+
+                //
+                // get the type of site and do the right thing for each type
+                //
+                $site_title = $core_sites->field( 'post_title' );
+                $site_type = $core_sites->field( 'site_type' );
+                $role = $core_sites->field( 'default_user_role' );
+
+                error_log( __FUNCTION__ . ": site: " . $site_title . ", site_type: " . $site_type . ", user_id: " . $user_id . ", role: " . $role );
+                switch( $site_type ) {
+                    //
+                    // multisite sites use add_user_to_blog
+                    //
+                    case "Multisite":
+                        $site = $core_sites->field( 'multisite_name' );
+
+                        if (! is_array( $site ) ) {
+                            error_log( __FUNCTION__ . ": site: " . $site_title . ", missing multisite_name" );
+                            break;
+                        }
+                        error_log( __FUNCTION__ . ": site_name: " . $site['domain'] . ", blog_id: " . $site['blog_id'] . ", user_id: " . $user_id . ", role: " . $role );
+                        $return = add_user_to_blog( $site['blog_id'], $user_id, $role );
+                        if ( is_wp_error( $return ) ) {
+                            error_log( __FUNCTION__ . ": error: " . $return->get_error_message() );
+                        } else {
+                            error_log( __FUNCTION__ . ": ok, added user_id: " . $user_id . " to blog_id: " . $site['blog_id'] . " with role: " . $role );
+                        }
+
+                        break;
+                    //
+                    // for shared usermeta table, add caps with the correct prefix
+                    // assumption: a given role has the same caps on each site
+                    //
+                    case "Internal":
+                        $internal_table_prefix = $core_sites->field( 'internal_table_prefix' );
+                        error_log( __FUNCTION__ . ": table_prefix: " . $internal_table_prefix );
+
+                        //$caps = get_role( $role )->capabilities;
+                        //$caps = array( $role );
+                        $caps = [ $role => true ];
+
+                        if ( $caps ) {
+                            error_log( __FUNCTION__ . ": table_prefix: " . $internal_table_prefix . ", user_caps: " . print_r( $caps, true) );
+                            $return = update_user_meta( $user_id, $internal_table_prefix . 'capabilities', $caps );
+                            if ( is_int($return) ) {
+                                error_log( __FUNCTION__ . ": ok, added user_id: " . $user_id . " to site: " . $site_title . ", with role: " . $role );
+                            } else if ($return) {
+                                error_log( __FUNCTION__ . ": ok, updated user_id: " . $user_id . " on site: " . $site_title . ", with role: " . $role );
+                            } else {
+                                 error_log( __FUNCTION__ . ": error, no change to user_id: " . $user_id . " on site: " . $site_title . ", with role: " . $role );
+                            }
+                        }
+
+                        break;
+                    case "External":
+                        $external_site_name = $core_sites->field( 'external_site_name' );
+                        error_log( __FUNCTION__ . ": site_name: " . $external_site_name );
+                        break;
+                    default:
+                        error_log( __FUNCTION__ . ": unknown/unsupported site_type: " . $site_type );
+                        break;
+                }
+
+            }
+        } else {
+            error_log( __FUNCTION__ . ": no core sites found, no work to do" );
+        }
+
+
+        //error_log( __FUNCTION__ . ": add role: subscriber" );
+        //$user->add_role( "subscriber" );
+    }
 
 }

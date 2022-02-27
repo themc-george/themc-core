@@ -188,8 +188,10 @@ class Themc_Core {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
-		// Shortcode name must be the same as in shortcode_atts() third parameter.
-		$this->loader->add_shortcode( $this->get_plugin_prefix() . 'shortcode', $plugin_public, 'themc_core_shortcode_func' );
+        // process user registration form
+        $this->loader->add_action( 'wpforms_process_complete_101219', $plugin_public,  'themc_core_wpf_member_registration', 10, 4 );
+        // process user activation
+        $this->loader->add_action( 'wpforms_user_registration_activation_user_activation_after', $plugin_public, 'themc_core_wpf_member_activation' );
 
 	}
 
